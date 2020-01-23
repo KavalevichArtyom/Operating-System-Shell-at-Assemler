@@ -117,7 +117,7 @@ mainMenu macro
         push ax
         push cx
         
-            Fon_games
+            fonGame
         
         pop cx
         pop ax
@@ -177,7 +177,7 @@ endm
   
   
   
-Fon_games  macro     
+fonGame  macro     
     
     call  CLEAR_SCREEN    
   
@@ -477,7 +477,7 @@ newLine macro op1
     mov cx, cikl 
     add si, cikl
     mov ah, 05
-    add dlina_stroki, 80 
+    add lengthStr, 80 
     
     printn op1
     mov cikl, 80 
@@ -588,7 +588,7 @@ comStr macro a, b
     printStr __text__ 
     
     pointer 23, 0 
-    printStr ___text__
+    printStr pathToFile
          
 endm    
 
@@ -603,7 +603,7 @@ inputConsole macro a, b
     r:
         int 21h
         
-        add dlina_stroki,1
+        add lengthStr,1
         dec cikl 
         
         mov a[si],al
@@ -638,36 +638,65 @@ endm
   
   
     
-newFile macro 
-     
+newFile macro 	
+	 
+	draw 15h,  4,  0, 20, 79 
+	clearDataFile
+	removeFile fileName
+	 
     pointer 4, 0                 
-    inputConsole namepar, 254   
+    inputConsole dataFile, 254   
     pointer 23, 58
-        
-    sub dlina_stroki, 2
-    sub dlina_stroki, 1
       
 endm   
-     
+
+
+clearDataFile macro
+	
+	
+	mov cx, lengthStr
+	mov si, offset dataFile
+	cmp lengthStr, 0 
+	jz notClearData
+
+	clear:
+		mov [si], ' ' 
+	loop clear
+	
+	mov lengthStr, 0
+	
+	notClearData:
+		mov cikl, 80
+
+endm
+  
+
+removeFile macro pathToFile    
+	
+    mov ah,41h
+    mov dx,offset pathToFile
+    int 21h
+
+endm  
      
      
 save macro
    
-    comStr  filename, 100;   
+    comStr  fileName, 100;   
      
     mov ah, 3Ch	;функция создания файла
 	mov cx, 0	;без атрибутов
-	mov dx, offset filename	;адрес имени файла
+	mov dx, offset fileName	;адрес имени файла
 	int 21h     
 	
 	mov handle, ax	;сохраняем дескриптор файла
 	 
 	mov ah, 3Dh	;функция открытия файла
 	mov al, 2	;доступ для чтения-записи
-	mov dx, offset filename	;адрес имени файла
+	mov dx, offset fileName	;адрес имени файла
 	int 21h 
 	
-	mov handle, ax	;сохраняем дескриптор файла
+	mov handle, ax	; сохраняем дескриптор файла
     
     ; установим указатель
     ; запишем строку в файл
@@ -682,8 +711,8 @@ save macro
 	 
 	mov ah, 3Fh	;функция чтения
    	mov bx, handle	;дескриптор
-   	mov cx, dlina_stroki	;столько читать
-   	mov dx, offset namepar 	;читать в буфер по этому адресу
+   	mov cx, lengthStr	;столько читать
+   	mov dx, offset dataFile 	;читать в буфер по этому адресу
    	int 21h
    	
    	mov cx, ax	; столько реально прочитали 
@@ -691,8 +720,8 @@ save macro
     ; запишем строку в файл
 	mov ah, 40h	;функция записи
 	mov bx, handle	;дескриптор
-	mov cx, dlina_stroki	;длина строки
-	mov dx, offset namepar	;адрес строки
+	mov cx, lengthStr	;длина строки
+	mov dx, offset dataFile	;адрес строки
 	int 21h
     
     ;закроем файл (нет необходимости, если не нужно читать повторно)
@@ -703,7 +732,7 @@ save macro
 	pointer 23, 58
 	 	    
 endm 
-  
+                                                
   
   
 open macro
@@ -715,7 +744,7 @@ open macro
     push ax
     push cx
     
-        fonText 4, 0, 19, 79
+        fonText 4, 0, 20, 79
     
     pop cx
     pop ax
@@ -726,14 +755,14 @@ open macro
     ; откроем файл
 	mov ah, 3Dh	;функция открытия файла
 	mov al, 2	;доступ для чтения-записи
-	mov dx, offset filename	;адрес имени файла
+	mov dx, offset fileName	;адрес имени файла
 	int 21h
 	
-	mov handle1, ax	;сохраняем дескриптор файла
+	mov handle, ax	;сохраняем дескриптор файла
     
     mov ah, 42h	;функция установки указателя
 	mov al, 0	;от начала файла
-	mov bx, handle1	;дескриптор
+	mov bx, handle	;дескриптор
 	mov cx, 0	;старшая половина указателя
     mov dx, 9	;младшая половина указателя  
 	mov dx, 0	;младшая половина указателя
@@ -742,11 +771,16 @@ open macro
     xor cx, cx
     
 	mov ah, 3Fh	;функция чтения
-	mov bx, handle1	;дескриптор dlina_stroki
+	mov bx, handle	;дескриптор lengthStr
 	mov cx, len	;столько читать 
-	mov cx, dlina_stroki	;столько читать
-	mov dx, offset namepar1	;читать в буфер по этому адресу
-	int 21h   
+	mov cx, lengthStr	;столько читать
+	mov dx, offset dataFile	;читать в буфер по этому адресу
+	int 21h  
+
+    ;закроем файл (нет необходимости, если не нужно читать повторно)
+	mov ah, 3Eh	;функция закрытия
+	mov bx, handle	;дескриптор
+	int 21h	
 	
 endm	 
  
@@ -775,8 +809,8 @@ printFile macro
    
        mov ah,  07h 
        mov cx,  len  
-       mov cx,  dlina_stroki
-       mov si,  offset namepar1
+       mov cx,  lengthStr
+       mov si,  offset dataFile
        
        nw: lodsb
            stosw
@@ -784,7 +818,7 @@ printFile macro
    
    pop cx 
    
-   mov dlina_stroki,0
+   mov lengthStr,0
           
 endm    
       
@@ -814,6 +848,8 @@ fonWordProcessor macro
    for: lodsb
       stosw
    loop for   
+   
+   draw 15h,  4,  0, 20, 79 
     
    mov di,  3360
    mov si,  offset text2
@@ -899,55 +935,53 @@ endm
   
 data segment                     
     
-    namepar     db 254 dup(' '), '$', 10, 13
-    namepar1    db 254 dup(' '), '$', 10, 13
+    dataFile     	db 254 dup(' '), '$', 10, 13
 
+    dlina_zm 		db 0 
 
-    dlina_zm db 0 
+    zddn    		db 0
+    zdup1   		db 0 
+    zdleft  		db 0
+    zdright 		db 0
 
-    zddn    db 0
-    zdup1   db 0 
-    zdleft  db 0
-    zdright db 0
+    qddn    		db 0
+    qdup1   		db 0 
+    qdleft  		db 0
+    qdright 		db 0
 
-    qddn    db 0
-    qdup1   db 0 
-    qdleft  db 0
-    qdright db 0
+    addn    		db 0
+    adup1   		db 0 
+    adleft  		db 0
+    adright 		db 0
 
-    addn    db 0
-    adup1   db 0 
-    adleft  db 0
-    adright db 0
-
-    ddn     db 0
-    dup1    db 0 
-    dleft   db 0
-    dright  db 0
+    ddn     		db 0
+    dup1    		db 0 
+    dleft   		db 0
+    dright  		db 0
  
-    dddn    db 0
-    ddup1   db 0 
-    ddleft  db 0
-    ddright db 0
+    dddn    		db 0
+    ddup1   		db 0 
+    ddleft  		db 0
+    ddright 		db 0
 
-    dn      db 0 
-    up      db 0 
-    left    db 0
-    right   db 0 
+    dn      		db 0 
+    up      		db 0 
+    left    		db 0
+    right   		db 0 
 
-    zmejka  db 0 
+    zmejka  		db 0 
 
-    load    db 0
+    load    		db 0
 
-    dlina_stroki    dw  0 
+    lengthStr    	dw  0 
     buf_games       db  20 dup(' ')
     string          db  5 dup(' ') 
     cikl            dw  80
     buf_main_menu   db  100 dup(' ')
-    filename        db  'your_name_file.TXT ',0 
+    fileName        db  'wordProcessor.txt',0 
     __text_         db  'Enter the command:$'
     __text__        db  'The path to the file:$'
-    ___text__       db  'C:\emu8086\MyBuild\your_name_file.TXT$' 
+    pathToFile      db  'C:\emu8086\MyBuild\wordProcessor.txt$' 
     _text_          db  '________________________________||MAIN MENU||___________________________________'  
     text            db  '_________________________________WORD PROCESSOR_________________________________' ;Title
     text1           db  '<TAB> - End offer <1> - New File   <2> - save File  <3> - open File  <4> - Exit$' ;Function    
@@ -969,7 +1003,6 @@ data segment
     __pla__         db  'Enter the command:$'
     proverka        db  ?
     handle	        dw  ?  
-    handle1	        dw	?
 
 
     lf1     = 10
